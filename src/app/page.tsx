@@ -1,91 +1,116 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { DataGrid, GridRenderCellParams } from "@mui/x-data-grid";
+import { formatPhoneNumber } from "@/utils/formatters";
+import Header from "@/components/Header";
+import { SearchInput } from "../components/Inputs";
+import { Advocate } from "@/types/advocate";
+import { PrimaryButton, SecondaryButton } from "@/components/Buttons";
+import { Box } from "@mui/material";
 
 export default function Home() {
-  const [advocates, setAdvocates] = useState([]);
-  const [filteredAdvocates, setFilteredAdvocates] = useState([]);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState(""); // what we're actually submitting
+  const [advocates, setAdvocates] = useState<Advocate[]>([]);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(5);
+  const [rowCount, setRowCount] = useState(0);
 
   useEffect(() => {
-    console.log("fetching advocates...");
-    fetch("/api/advocates").then((response) => {
-      response.json().then((jsonResponse) => {
-        setAdvocates(jsonResponse.data);
-        setFilteredAdvocates(jsonResponse.data);
-      });
-    });
-  }, []);
+    const fetchAdvocates = async () => {
+      const baseUrl = searchTerm
+        ? `/api/advocates/search?search=${encodeURIComponent(searchTerm)}`
+        : `/api/advocates?`;
 
-  const onChange = (e) => {
-    const searchTerm = e.target.value;
+      const res = await fetch(`${baseUrl}&page=${page}&limit=${pageSize}`);
+      const { data, total } = await res.json();
+      setAdvocates(data);
+      setRowCount(total);
+    };
 
-    document.getElementById("search-term").innerHTML = searchTerm;
+    fetchAdvocates();
+  }, [searchTerm, page, pageSize]);
 
-    console.log("filtering advocates...");
-    const filteredAdvocates = advocates.filter((advocate) => {
-      return (
-        advocate.firstName.includes(searchTerm) ||
-        advocate.lastName.includes(searchTerm) ||
-        advocate.city.includes(searchTerm) ||
-        advocate.degree.includes(searchTerm) ||
-        advocate.specialties.includes(searchTerm) ||
-        advocate.yearsOfExperience.includes(searchTerm)
-      );
-    });
-
-    setFilteredAdvocates(filteredAdvocates);
+  const onSearchSubmit = () => {
+    setPage(0);
+    setSearchTerm(searchInput);
   };
 
-  const onClick = () => {
-    console.log(advocates);
-    setFilteredAdvocates(advocates);
+  const onResetClick = () => {
+    setSearchInput("");
+    setSearchTerm("");
+    setPage(0);
   };
+
+  const columns = [
+    { field: "firstName", headerName: "First Name", width: 150 },
+    { field: "lastName", headerName: "Last Name", width: 150 },
+    { field: "city", headerName: "City", width: 150 },
+    { field: "degree", headerName: "Degree", width: 150 },
+    {
+      field: "specialties",
+      headerName: "Specialties",
+      width: 150,
+      renderCell: (params: GridRenderCellParams) => (
+        <div style={{ overflowX: "auto", whiteSpace: "nowrap", width: "100%" }}>
+          {params.value?.join(", ")}
+        </div>
+      ),
+    },
+    {
+      field: "yearsOfExperience",
+      headerName: "Years of Experience",
+      width: 200,
+    },
+    {
+      field: "phoneNumber",
+      headerName: "Phone Number",
+      width: 150,
+      renderCell: (params: GridRenderCellParams) => (
+        <span>{formatPhoneNumber(params.value.toString())}</span>
+      ),
+    },
+  ];
 
   return (
     <main style={{ margin: "24px" }}>
-      <h1>Solace Advocates</h1>
-      <br />
-      <br />
-      <div>
-        <p>Search</p>
-        <p>
-          Searching for: <span id="search-term"></span>
-        </p>
-        <input style={{ border: "1px solid black" }} onChange={onChange} />
-        <button onClick={onClick}>Reset Search</button>
+      <Header text="Solace Advocates" sx={{ borderRadius: 2 }} />
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2, mt: 2 }}>
+        <Box sx={{ flexGrow: 1 }}>
+          <SearchInput
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search for advocates..."
+          />
+        </Box>
+        <PrimaryButton onClick={onSearchSubmit}>Search</PrimaryButton>
+        {searchTerm && (
+          <SecondaryButton onClick={onResetClick}>Reset</SecondaryButton>
+        )}
+      </Box>
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        <DataGrid
+          rows={advocates}
+          columns={columns}
+          getRowId={(row) => row.id}
+          disableRowSelectionOnClick
+          rowCount={rowCount}
+          paginationMode="server"
+          sortingMode="server"
+          filterMode="server"
+          disableColumnFilter
+          disableColumnSelector
+          disableColumnSorting
+          disableColumnMenu
+          paginationModel={{ page, pageSize }}
+          onPaginationModelChange={(model) => {
+            setPage(model.page);
+            setPageSize(model.pageSize);
+          }}
+          pageSizeOptions={[5, 10, 25]}
+        />
       </div>
-      <br />
-      <br />
-      <table>
-        <thead>
-          <th>First Name</th>
-          <th>Last Name</th>
-          <th>City</th>
-          <th>Degree</th>
-          <th>Specialties</th>
-          <th>Years of Experience</th>
-          <th>Phone Number</th>
-        </thead>
-        <tbody>
-          {filteredAdvocates.map((advocate) => {
-            return (
-              <tr>
-                <td>{advocate.firstName}</td>
-                <td>{advocate.lastName}</td>
-                <td>{advocate.city}</td>
-                <td>{advocate.degree}</td>
-                <td>
-                  {advocate.specialties.map((s) => (
-                    <div>{s}</div>
-                  ))}
-                </td>
-                <td>{advocate.yearsOfExperience}</td>
-                <td>{advocate.phoneNumber}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
     </main>
   );
 }

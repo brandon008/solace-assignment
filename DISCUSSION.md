@@ -1,0 +1,3 @@
+- added server side pagination to efficiently handle large datasets
+- moved filtering logic to the server via new GET /api/advocates/search route, encoding search terms to avoid breaking characters in params
+- fixed typescript issue related to mock db fallback return type.
