@@ -1,0 +1,7 @@
+- improved UI and refactored layout into reusable, React style components,
+- removed dangerously setting inner html document.getElementById("search-term").innerHTML = searchTerm; for safety and best practices
+- fixed filter, dynamically render reset button, got rid of unessesary search button
+- introduced proper TypeScript interfaces to improve type safety
+- Use debounce to optimize filtering calls and limit function calls on potentially large dataset
+- replaced raw HTML table with MUI DataGrid plus formatting data
+- added launch config for debugging
