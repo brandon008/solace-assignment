@@ -1,7 +1,3 @@
-- improved UI and refactored layout into reusable, React style components,
-- removed dangerously setting inner html document.getElementById("search-term").innerHTML = searchTerm; for safety and best practices
-- fixed filter, dynamically render reset button, got rid of unessesary search button
-- introduced proper TypeScript interfaces to improve type safety
-- Use debounce to optimize filtering calls and limit function calls on potentially large dataset
-- replaced raw HTML table with MUI DataGrid plus formatting data
-- added launch config for debugging
+- added server side pagination to efficiently handle large datasets
+- moved filtering logic to the server via new GET /api/advocates/search route, encoding search terms to avoid breaking characters in params
+- fixed typescript issue related to mock db fallback return type.

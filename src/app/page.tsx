@@ -1,98 +1,59 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { DataGrid, GridRenderCellParams } from "@mui/x-data-grid";
 import { formatPhoneNumber } from "@/utils/formatters";
 import Header from "@/components/Header";
 import { SearchInput } from "../components/Inputs";
 import { Advocate } from "@/types/advocate";
-import { PrimaryButton } from "@/components/Buttons";
+import { PrimaryButton, SecondaryButton } from "@/components/Buttons";
 import { Box } from "@mui/material";
-import { debounce } from "@/utils/debounce";
 
 export default function Home() {
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState(""); // what we're actually submitting
   const [advocates, setAdvocates] = useState<Advocate[]>([]);
-  const [filteredAdvocates, setFilteredAdvocates] = useState<Advocate[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(5);
+  const [rowCount, setRowCount] = useState(0);
 
   useEffect(() => {
-    console.log("fetching advocates...");
-    fetch("/api/advocates").then((response) => {
-      response.json().then((jsonResponse) => {
-        setAdvocates(jsonResponse.data);
-        setFilteredAdvocates(jsonResponse.data);
-      });
-    });
-  }, []);
-  // use useRef to get the input value and avoid re-renders
-  // get rid of the dangerously set inner html
-  useEffect(() => {
-    const runFilter = debounce((value: string) => {
-      const filtered = advocates.filter((advocate) => {
-        return (
-          advocate.firstName?.toLowerCase().includes(value.toLowerCase()) ||
-          advocate.lastName?.toLowerCase().includes(value.toLowerCase()) ||
-          advocate.city?.toLowerCase().includes(value.toLowerCase()) ||
-          advocate.degree?.toLowerCase().includes(value.toLowerCase()) ||
-          advocate.specialties
-            ?.join(", ")
-            .toLowerCase()
-            .includes(value.toLowerCase()) ||
-          advocate.yearsOfExperience?.toString().includes(value)
-        );
-      });
+    const fetchAdvocates = async () => {
+      const baseUrl = searchTerm
+        ? `/api/advocates/search?search=${encodeURIComponent(searchTerm)}`
+        : `/api/advocates?`;
 
-      setFilteredAdvocates(filtered);
-    }, 300);
+      const res = await fetch(`${baseUrl}&page=${page}&limit=${pageSize}`);
+      const { data, total } = await res.json();
+      setAdvocates(data);
+      setRowCount(total);
+    };
 
-    runFilter(searchTerm);
-  }, [searchTerm, advocates]);
+    fetchAdvocates();
+  }, [searchTerm, page, pageSize]);
 
-  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
+  const onSearchSubmit = () => {
+    setPage(0);
+    setSearchTerm(searchInput);
   };
 
   const onResetClick = () => {
-    console.log(advocates);
+    setSearchInput("");
     setSearchTerm("");
-    console.log("resetting advocates...");
-    setFilteredAdvocates(advocates);
+    setPage(0);
   };
 
   const columns = [
-    {
-      field: "firstName",
-      headerName: "First Name",
-      width: 150,
-    },
-    {
-      field: "lastName",
-      headerName: "Last Name",
-      width: 150,
-    },
-    {
-      field: "city",
-      headerName: "City",
-      width: 150,
-    },
-    {
-      field: "degree",
-      headerName: "Degree",
-      width: 150,
-    },
+    { field: "firstName", headerName: "First Name", width: 150 },
+    { field: "lastName", headerName: "Last Name", width: 150 },
+    { field: "city", headerName: "City", width: 150 },
+    { field: "degree", headerName: "Degree", width: 150 },
     {
       field: "specialties",
       headerName: "Specialties",
       width: 150,
       renderCell: (params: GridRenderCellParams) => (
-        <div
-          style={{
-            overflowX: "auto",
-            whiteSpace: "nowrap",
-            width: "100%",
-          }}
-        >
+        <div style={{ overflowX: "auto", whiteSpace: "nowrap", width: "100%" }}>
           {params.value?.join(", ")}
         </div>
       ),
@@ -115,31 +76,41 @@ export default function Home() {
   return (
     <main style={{ margin: "24px" }}>
       <Header text="Solace Advocates" sx={{ borderRadius: 2 }} />
-      <br />
-      <br />
-      <div>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-          <Box sx={{ flexGrow: 1 }}>
-            <SearchInput
-              value={searchTerm}
-              onChange={onChange}
-              placeholder="Search for advocates..."
-            />
-          </Box>
-
-          {searchTerm && (
-            <PrimaryButton onClick={onResetClick}>Reset</PrimaryButton>
-          )}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2, mt: 2 }}>
+        <Box sx={{ flexGrow: 1 }}>
+          <SearchInput
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search for advocates..."
+          />
         </Box>
+        <PrimaryButton onClick={onSearchSubmit}>Search</PrimaryButton>
+        {searchTerm && (
+          <SecondaryButton onClick={onResetClick}>Reset</SecondaryButton>
+        )}
+      </Box>
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        <DataGrid
+          rows={advocates}
+          columns={columns}
+          getRowId={(row) => row.id}
+          disableRowSelectionOnClick
+          rowCount={rowCount}
+          paginationMode="server"
+          sortingMode="server"
+          filterMode="server"
+          disableColumnFilter
+          disableColumnSelector
+          disableColumnSorting
+          disableColumnMenu
+          paginationModel={{ page, pageSize }}
+          onPaginationModelChange={(model) => {
+            setPage(model.page);
+            setPageSize(model.pageSize);
+          }}
+          pageSizeOptions={[5, 10, 25]}
+        />
       </div>
-      <br />
-      <br />
-      <DataGrid
-        rows={filteredAdvocates}
-        columns={columns}
-        getRowId={(row) => row.id || row.phoneNumber}
-        disableRowSelectionOnClick
-      />
     </main>
   );
 }
